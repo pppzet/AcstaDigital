@@ -354,12 +354,23 @@
   <input type="file" id="photoInputCamera" accept="image/*" capture="environment">
   <input type="file" id="photoInputGallery" accept="image/*">
   <input type="file" id="charFileInput" accept="image/png,image/webp,image/jpeg">
+  <input type="file" id="importFileInput" accept="application/json,.json">
 
   <div id="settingsOverlay">
     <div id="settingsSheet">
       <div class="settingsClose"><div class="bar"></div></div>
       <h2>キャラとAPIの設定</h2>
       <p class="hint">キャラの見た目・口調・APIキーはこの端末内（IndexedDB）にだけ保存されます。</p>
+
+      <div class="field">
+        <label>設定のバックアップ</label>
+        <div class="charPickRow" style="flex-wrap: wrap; gap: 10px;">
+          <button class="pickBtn" id="btnExportSettings">📤 JSONで書き出す</button>
+          <button class="pickBtn" id="btnImportSettings">📥 JSONから復元する</button>
+        </div>
+        <p class="safetyNote" id="importStatus" style="display:none;"></p>
+        <p class="safetyNote">🔒 書き出したJSONにはAPIキーは含まれません。復元後、APIキーだけは改めて入力してください</p>
+      </div>
 
       <div class="field">
         <label for="charNameInput">キャラの名前</label>
@@ -567,8 +578,63 @@
     reader.readAsDataURL(file);
   });
 
-  el("keyToggle").addEventListener("click", () => {
-    const input = el("apiKeyInput");
+  /* ---------------- Settings backup (export / import JSON) ---------------- */
+  function showImportStatus(msg, ok){
+    const p = el("importStatus");
+    p.textContent = msg;
+    p.style.display = "block";
+    p.style.color = ok ? "var(--aurora-a)" : "#f5a9d0";
+  }
+
+  el("btnExportSettings").addEventListener("click", () => {
+    const exportData = {
+      charName: settings.charName,
+      persona: settings.persona,
+      charImageDataUrl: settings.charImageDataUrl,
+      model: settings.model,
+      accent1: settings.accent1,
+      accent2: settings.accent2
+    };
+    const dataStr = JSON.stringify(exportData, null, 2);
+    const blob = new Blob([dataStr], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "companion_settings_" + Date.now() + ".json";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+    showImportStatus("📤 書き出しました（APIキーは含まれません）", true);
+  });
+
+  el("btnImportSettings").addEventListener("click", () => el("importFileInput").click());
+  el("importFileInput").addEventListener("change", async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    try{
+      const text = await file.text();
+      const imported = JSON.parse(text);
+      settings = {
+        charName: imported.charName || "",
+        persona: imported.persona || "",
+        charImageDataUrl: imported.charImageDataUrl || "",
+        apiKey: settings.apiKey,
+        model: imported.model || "gemini-3.1-flash-lite",
+        accent1: imported.accent1 || "#6fe3c4",
+        accent2: imported.accent2 || "#f5a9d0"
+      };
+      await idbSet("settings", settings);
+      applySettingsToUI();
+      showImportStatus("✅ 設定を復元しました（APIキーは含まれないので、必要なら入力してください）", true);
+    }catch(err){
+      console.error(err);
+      showImportStatus("⚠️ 読み込みに失敗しました。ファイル形式を確認してください", false);
+    }
+    el("importFileInput").value = "";
+  });
+
+  el("keyToggle").addEventListener("click", () => {    const input = el("apiKeyInput");
     const showing = input.type === "text";
     input.type = showing ? "password" : "text";
     el("keyToggle").textContent = showing ? "表示する" : "隠す";
