@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
-<title>アクスタ撮りコンパニオン（仮）</title>
+<title>旅の景色とコンパニオン</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700&family=Zen+Kaku+Gothic+New:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -313,7 +313,7 @@
     <div id="emptyState">
       <div class="star">✦</div>
       <h1>まだ写真がありません</h1>
-      <p>アクスタを連れて行きたい景色の写真を選んでね。<br>キャラをタップすると、その景色について話しかけてくれます。</p>
+      <p>キャラクターを連れて行きたい景色の写真を選んでね。<br>キャラをタップすると、その景色について話しかけてくれます。</p>
       <div class="fabRow">
         <button class="fab" id="btnPickPhotoEmptyCamera">📷 写真を撮る</button>
         <button class="fab fabGhost" id="btnPickPhotoEmptyGallery">🖼️ アルバムから選ぶ</button>
@@ -348,7 +348,7 @@
     <div id="settingsSheet">
       <div class="settingsClose"><div class="bar"></div></div>
       <h2>キャラとAPIの設定</h2>
-      <p class="hint">キャラの見た目・口調・APIキーはこの端末内（IndexedDB）にだけ保存されます。よぞらコンパニオンと同じ考え方です。</p>
+      <p class="hint">キャラの見た目・口調・APIキーはこの端末内（IndexedDB）にだけ保存されます。</p>
 
       <div class="field">
         <label for="charNameInput">キャラの名前</label>
@@ -1037,7 +1037,7 @@
       const file = new File([blob], filename, { type: "image/png" });
       if (navigator.canShare && navigator.canShare({ files: [file] })){
         try{
-          await navigator.share({ files: [file], title: "アクスタ撮り" });
+          await navigator.share({ files: [file], title: "旅の景色とコンパニオン" });
           btn.textContent = original;
           return;
         }catch(shareErr){
