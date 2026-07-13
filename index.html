@@ -70,6 +70,10 @@
     font-size: 19px; font-weight: 700; color: var(--ink); margin: 0;
   }
   #emptyState p{ font-size: 13.5px; line-height: 1.7; margin: 0; max-width: 30em; }
+  .safetyNote{
+    font-size: 11px; color: var(--ink-dim); opacity: 0.8;
+    margin: 2px 0 0 0; max-width: 26em; line-height: 1.6;
+  }
 
   .fab{
     font-family: 'Zen Maru Gothic', sans-serif;
@@ -324,6 +328,7 @@
         <button class="fab" id="btnPickPhotoEmptyCamera">📷 写真を撮る</button>
         <button class="fab fabGhost" id="btnPickPhotoEmptyGallery">🖼️ アルバムから選ぶ</button>
       </div>
+      <p class="safetyNote">⚠️ 通りすがりの方などが写り込んでいる場合は、公開前にモザイクなどの配慮をお願いします</p>
     </div>
 
     <div id="charWrap">
@@ -367,6 +372,7 @@
           <img id="charPreview" src="" alt="プレビュー">
           <button class="pickBtn" id="btnPickCharImg">画像を選ぶ</button>
         </div>
+        <p class="safetyNote">⚠️ 有名人・芸能人など実在の人物の写真はキャラクター画像に使用しないでください</p>
       </div>
 
       <div class="field">
