@@ -1,0 +1,1066 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
+<title>アクスタ撮りコンパニオン（仮）</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700&family=Zen+Kaku+Gothic+New:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --night: #07080f;
+    --night-2: #12122580;
+    --panel: rgba(22, 20, 40, 0.72);
+    --panel-border: rgba(200, 190, 255, 0.18);
+    --ink: #ece9f7;
+    --ink-dim: #a79fc7;
+    --aurora-a: #6fe3c4;
+    --aurora-b: #a78bfa;
+    --aurora-c: #f5a9d0;
+    --gold: #f4d58d;
+    --glow-1: #1c1a35;
+    --glow-2: #1a1430;
+  }
+  @media (prefers-reduced-motion: reduce){
+    *{ animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+  }
+  *{ box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body{
+    margin:0; padding:0; width:100%; height:100%;
+    background: var(--night);
+    color: var(--ink);
+    font-family: 'Zen Kaku Gothic New', sans-serif;
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+  #app{
+    position: fixed; inset: 0;
+    display: flex; flex-direction: column;
+  }
+
+  /* ---------- Stage (photo full screen) ---------- */
+  #stage{
+    position: relative; flex: 1; overflow: hidden;
+    background:
+      radial-gradient(ellipse at 30% 20%, var(--glow-1) 0%, transparent 55%),
+      radial-gradient(ellipse at 80% 80%, var(--glow-2) 0%, transparent 55%),
+      var(--night);
+    touch-action: none;
+  }
+  #bgPhoto{
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    object-fit: cover;
+    display: none;
+    transform-origin: center center;
+  }
+  #emptyState{
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 18px; padding: 40px; text-align: center;
+    color: var(--ink-dim);
+  }
+  #emptyState .star{
+    font-size: 34px;
+    background: linear-gradient(120deg, var(--aurora-a), var(--aurora-b) 50%, var(--aurora-c));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  #emptyState h1{
+    font-family: 'Zen Maru Gothic', sans-serif;
+    font-size: 19px; font-weight: 700; color: var(--ink); margin: 0;
+  }
+  #emptyState p{ font-size: 13.5px; line-height: 1.7; margin: 0; max-width: 30em; }
+
+  .fab{
+    font-family: 'Zen Maru Gothic', sans-serif;
+    border: none; cursor: pointer;
+    border-radius: 999px;
+    padding: 13px 22px;
+    font-size: 14.5px; font-weight: 500;
+    color: #16142a;
+    background: linear-gradient(120deg, var(--aurora-a), var(--aurora-b) 60%, var(--aurora-c));
+    box-shadow: 0 6px 24px rgba(167, 139, 250, 0.35);
+  }
+  .fab:active{ transform: scale(0.97); }
+  .fabRow{ display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 280px; }
+  .fabGhost{
+    background: rgba(255,255,255,0.06);
+    color: var(--ink);
+    border: 1px solid var(--panel-border);
+    box-shadow: none;
+  }
+
+  #photoMenu{
+    position: absolute; top: 48px; left: 0;
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    backdrop-filter: blur(10px);
+    border-radius: 14px;
+    padding: 6px;
+    display: none;
+    flex-direction: column;
+    min-width: 178px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.45);
+    z-index: 30;
+  }
+  #photoMenu.show{ display: flex; }
+  #photoMenu button{
+    background: none; border: none; color: var(--ink);
+    font-family: 'Zen Kaku Gothic New', sans-serif;
+    font-size: 13.5px; text-align: left;
+    padding: 10px 10px; border-radius: 9px; cursor: pointer;
+  }
+  #photoMenu button:active{ background: rgba(255,255,255,0.08); }
+
+  /* ---------- Top chrome ---------- */
+  #topBar{
+    position: absolute; top: 0; left: 0; right: 0;
+    display: flex; justify-content: space-between; align-items: center;
+    padding: max(14px, env(safe-area-inset-top)) 14px 0 14px;
+    z-index: 20; pointer-events: none;
+  }
+  #topBar > *{ pointer-events: auto; }
+  .icon-btn{
+    width: 40px; height: 40px; border-radius: 50%;
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    backdrop-filter: blur(8px);
+    color: var(--ink);
+    font-size: 17px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+  }
+  .icon-btn:focus-visible{ outline: 2px solid var(--aurora-b); outline-offset: 2px; }
+
+  /* ---------- Character overlay ---------- */
+  #charWrap{
+    position: absolute;
+    width: 34vw; max-width: 190px; min-width: 100px;
+    display: none;
+    touch-action: none;
+    user-select: none;
+    filter: drop-shadow(0 10px 18px rgba(0,0,0,0.45));
+  }
+  #charWrap.dragging{ filter: drop-shadow(0 16px 26px rgba(0,0,0,0.55)); }
+  #charImg{
+    width: 100%; display: block; pointer-events: none;
+  }
+  #charShadow{
+    width: 62%; height: 10px; margin: 2px auto 0;
+    background: radial-gradient(ellipse, rgba(0,0,0,0.45) 0%, transparent 72%);
+    border-radius: 50%;
+  }
+  #charPulse{
+    position: absolute; inset: -14px;
+    border-radius: 50%;
+    pointer-events: none;
+    opacity: 0;
+  }
+  #charPulse.active{
+    animation: pulseGlow 1.3s ease-in-out infinite;
+  }
+  @keyframes pulseGlow{
+    0%,100%{ opacity: 0; transform: scale(0.9); }
+    50%{ opacity: 0.35; transform: scale(1.05); }
+  }
+
+  /* ---------- Speech bubble ---------- */
+  #bubbleWrap{
+    position: absolute; left: 0; right: 0; bottom: 0;
+    padding: 0 14px max(14px, env(safe-area-inset-bottom)) 14px;
+    z-index: 25;
+    display: flex; justify-content: center;
+    transform: translateY(120%);
+    transition: transform 0.32s cubic-bezier(.2,.9,.3,1.1);
+    pointer-events: none;
+  }
+  #bubbleWrap.show{ transform: translateY(0); pointer-events: auto; }
+  #bubble{
+    width: 100%; max-width: 480px;
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    backdrop-filter: blur(14px);
+    border-radius: 18px;
+    padding: 14px 16px 14px 16px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+  }
+  #bubbleHead{
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 6px;
+  }
+  #bubbleName{
+    font-family: 'Zen Maru Gothic', sans-serif;
+    font-size: 13px; font-weight: 700;
+    background: linear-gradient(120deg, var(--aurora-a), var(--aurora-c));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  #bubbleClose{
+    background: none; border: none; color: var(--ink-dim);
+    font-size: 18px; cursor: pointer; line-height: 1; padding: 4px;
+  }
+  #bubbleText{
+    font-size: 14.5px; line-height: 1.75; color: var(--ink);
+    white-space: pre-wrap;
+    min-height: 1.2em;
+  }
+  #bubbleText.loading{ color: var(--ink-dim); }
+  #bubbleFoot{ margin-top: 10px; display: flex; justify-content: flex-end; }
+  #askAgain{
+    font-family: 'Zen Kaku Gothic New', sans-serif;
+    font-size: 12.5px; color: var(--ink-dim);
+    background: none; border: 1px solid var(--panel-border); border-radius: 999px;
+    padding: 6px 14px; cursor: pointer;
+  }
+  #askAgain:active{ transform: scale(0.97); }
+
+  /* ---------- Settings modal ---------- */
+  #settingsOverlay{
+    position: fixed; inset: 0; z-index: 50;
+    background: rgba(4,4,10,0.72);
+    backdrop-filter: blur(4px);
+    display: none;
+    align-items: flex-end; justify-content: center;
+  }
+  #settingsOverlay.show{ display: flex; }
+  #settingsSheet{
+    width: 100%; max-width: 520px; max-height: 88vh; overflow-y: auto;
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-bottom: none;
+    border-radius: 22px 22px 0 0;
+    padding: 20px 20px max(26px, env(safe-area-inset-bottom)) 20px;
+  }
+  #settingsSheet h2{
+    font-family: 'Zen Maru Gothic', sans-serif;
+    font-size: 16.5px; margin: 4px 0 4px 0;
+  }
+  #settingsSheet .hint{
+    font-size: 12px; color: var(--ink-dim); line-height: 1.6; margin: 0 0 18px 0;
+  }
+  .field{ margin-bottom: 16px; }
+  .field label{
+    display: block; font-size: 12.5px; color: var(--ink-dim); margin-bottom: 6px;
+    font-weight: 500;
+  }
+  .field input[type=text], .field input[type=password], .field textarea, .field select{
+    width: 100%; background: rgba(255,255,255,0.05);
+    border: 1px solid var(--panel-border); border-radius: 12px;
+    padding: 11px 12px; color: var(--ink); font-size: 14px;
+    font-family: 'Zen Kaku Gothic New', sans-serif;
+    resize: vertical;
+  }
+  .field select{ appearance: none; -webkit-appearance: none; }
+  .field textarea{ min-height: 90px; line-height: 1.6; }
+  .field input:focus-visible, .field textarea:focus-visible, .field select:focus-visible{
+    outline: 2px solid var(--aurora-b); outline-offset: 1px;
+  }
+  .charPickRow{ display: flex; align-items: center; gap: 12px; }
+  .colorRow{ display: flex; gap: 20px; }
+  .colorSwatchLabel{
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    font-size: 11.5px; color: var(--ink-dim); cursor: pointer;
+  }
+  .colorSwatchLabel input[type=color]{
+    width: 44px; height: 44px; border-radius: 12px; border: 1px solid var(--panel-border);
+    background: none; cursor: pointer; padding: 0;
+  }
+  #charPreview{
+    width: 56px; height: 56px; border-radius: 14px;
+    background: rgba(255,255,255,0.06); border: 1px dashed var(--panel-border);
+    object-fit: contain; display: block;
+  }
+  .pickBtn{
+    font-family: 'Zen Kaku Gothic New', sans-serif;
+    font-size: 13px; padding: 9px 14px; border-radius: 10px;
+    border: 1px solid var(--panel-border); background: rgba(255,255,255,0.05);
+    color: var(--ink); cursor: pointer;
+  }
+  #saveSettings{
+    width: 100%; margin-top: 6px;
+  }
+  #keyToggle{
+    background: none; border: none; color: var(--ink-dim); font-size: 12px;
+    cursor: pointer; margin-top: 4px; padding: 0;
+  }
+  .settingsClose{
+    display: flex; justify-content: center; margin-bottom: 6px;
+  }
+  .settingsClose .bar{
+    width: 36px; height: 4px; border-radius: 4px; background: var(--panel-border);
+  }
+
+  input[type=file]{ display: none; }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <div id="stage">
+    <div id="topBar">
+      <div style="position:relative;">
+        <button class="icon-btn" id="btnChangePhoto" title="写真を変える" aria-label="写真を変える">🖼️</button>
+        <div id="photoMenu" class="popover">
+          <button id="menuCamera">📷 写真を撮る</button>
+          <button id="menuGallery">🖼️ アルバムから選ぶ</button>
+        </div>
+      </div>
+      <button class="icon-btn" id="btnScreenshot" title="保存する" aria-label="保存する">📸</button>
+      <button class="icon-btn" id="btnSettings" title="設定" aria-label="設定">⚙️</button>
+    </div>
+
+    <img id="bgPhoto" alt="">
+
+    <div id="emptyState">
+      <div class="star">✦</div>
+      <h1>まだ写真がありません</h1>
+      <p>アクスタを連れて行きたい景色の写真を選んでね。<br>キャラをタップすると、その景色について話しかけてくれます。</p>
+      <div class="fabRow">
+        <button class="fab" id="btnPickPhotoEmptyCamera">📷 写真を撮る</button>
+        <button class="fab fabGhost" id="btnPickPhotoEmptyGallery">🖼️ アルバムから選ぶ</button>
+      </div>
+    </div>
+
+    <div id="charWrap">
+      <div id="charPulse"></div>
+      <img id="charImg" alt="キャラクター" draggable="false">
+      <div id="charShadow"></div>
+    </div>
+
+    <div id="bubbleWrap">
+      <div id="bubble">
+        <div id="bubbleHead">
+          <span id="bubbleName">—</span>
+          <button id="bubbleClose" aria-label="閉じる">✕</button>
+        </div>
+        <div id="bubbleText"></div>
+        <div id="bubbleFoot">
+          <button id="askAgain">もう一度きく</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <input type="file" id="photoInputCamera" accept="image/*" capture="environment">
+  <input type="file" id="photoInputGallery" accept="image/*">
+  <input type="file" id="charFileInput" accept="image/png,image/webp,image/jpeg">
+
+  <div id="settingsOverlay">
+    <div id="settingsSheet">
+      <div class="settingsClose"><div class="bar"></div></div>
+      <h2>キャラとAPIの設定</h2>
+      <p class="hint">キャラの見た目・口調・APIキーはこの端末内（IndexedDB）にだけ保存されます。よぞらコンパニオンと同じ考え方です。</p>
+
+      <div class="field">
+        <label for="charNameInput">キャラの名前</label>
+        <input type="text" id="charNameInput" placeholder="例：セラ">
+      </div>
+
+      <div class="field">
+        <label>キャラ画像（背景透過PNGがおすすめ）</label>
+        <div class="charPickRow">
+          <img id="charPreview" src="" alt="プレビュー">
+          <button class="pickBtn" id="btnPickCharImg">画像を選ぶ</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>アプリの雰囲気カラー</label>
+        <div class="colorRow">
+          <label class="colorSwatchLabel">
+            <input type="color" id="accentColor1" value="#6fe3c4">
+            <span>メイン</span>
+          </label>
+          <label class="colorSwatchLabel">
+            <input type="color" id="accentColor2" value="#f5a9d0">
+            <span>サブ</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="personaInput">キャラ設定プロンプト</label>
+        <textarea id="personaInput" placeholder="例：あなたは「セラ」という、少し気まぐれで星が好きな子です。写真を見せてもらったら、まるでその景色に自分も一緒にいるかのように、短く親しみのある一言コメントをしてください。絵文字は控えめに、1〜3文程度で。"></textarea>
+      </div>
+
+      <div class="field">
+        <label for="apiKeyInput">Gemini API キー</label>
+        <input type="password" id="apiKeyInput" placeholder="AIza...">
+        <button id="keyToggle" type="button">表示する</button>
+      </div>
+
+      <div class="field">
+        <label for="modelSelect">AIモデル</label>
+        <select id="modelSelect">
+          <option value="gemini-3.1-flash-lite">gemini-3.1-flash-lite（高速・低コスト・おすすめ）</option>
+          <option value="gemini-3.5-flash">gemini-3.5-flash（標準・バランス型）</option>
+          <option value="gemini-3.1-pro-preview">gemini-3.1-pro-preview（高精度・じっくり考える）</option>
+        </select>
+      </div>
+
+      <button class="fab" id="saveSettings" style="width:100%;">保存する</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------------- IndexedDB helper ---------------- */
+  const DB_NAME = "acsta_companion_db";
+  const STORE = "kv";
+  let dbPromise = new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, 1);
+    req.onupgradeneeded = () => req.result.createObjectStore(STORE);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+  async function idbGet(key){
+    const db = await dbPromise;
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE, "readonly");
+      const req = tx.objectStore(STORE).get(key);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+  async function idbSet(key, val){
+    const db = await dbPromise;
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE, "readwrite");
+      tx.objectStore(STORE).put(val, key);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+
+  /* ---------------- State ---------------- */
+  let settings = {
+    charName: "",
+    persona: "",
+    charImageDataUrl: "",
+    apiKey: "",
+    model: "gemini-3.1-flash-lite",
+    accent1: "#6fe3c4",
+    accent2: "#f5a9d0"
+  };
+
+  /* ---------------- Theme color helpers ---------------- */
+  function hexToRgb(hex){
+    hex = (hex || "#6fe3c4").replace("#", "");
+    if (hex.length === 3) hex = hex.split("").map(c => c + c).join("");
+    const num = parseInt(hex, 16);
+    return { r: (num >> 16) & 255, g: (num >> 8) & 255, b: num & 255 };
+  }
+  function rgbToHex(r, g, b){
+    return "#" + [r, g, b].map(v => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, "0")).join("");
+  }
+  function mixHex(hex1, hex2, t){
+    const a = hexToRgb(hex1), b = hexToRgb(hex2);
+    return rgbToHex(a.r + (b.r - a.r) * t, a.g + (b.g - a.g) * t, a.b + (b.b - a.b) * t);
+  }
+  function darkenHex(hex, amount){
+    const c = hexToRgb(hex);
+    return rgbToHex(c.r * (1 - amount), c.g * (1 - amount), c.b * (1 - amount));
+  }
+  function hexToRgba(hex, alpha){
+    const c = hexToRgb(hex);
+    return `rgba(${c.r}, ${c.g}, ${c.b}, ${alpha})`;
+  }
+  function applyTheme(){
+    const a1 = settings.accent1 || "#6fe3c4";
+    const a2 = settings.accent2 || "#f5a9d0";
+    const mid = mixHex(a1, a2, 0.5);
+    const root = document.documentElement.style;
+    root.setProperty("--aurora-a", a1);
+    root.setProperty("--aurora-b", mid);
+    root.setProperty("--aurora-c", a2);
+    root.setProperty("--glow-1", darkenHex(a1, 0.82));
+    root.setProperty("--glow-2", darkenHex(a2, 0.82));
+    // 設定画面の背景やセリフ欄など、パネル全般にもキャラの色味を反映
+    root.setProperty("--panel", hexToRgba(darkenHex(mid, 0.65), 0.76));
+    root.setProperty("--panel-border", hexToRgba(mid, 0.4));
+  }
+
+  const el = (id) => document.getElementById(id);
+  const stage = el("stage");
+  const bgPhoto = el("bgPhoto");
+  const emptyState = el("emptyState");
+  const charWrap = el("charWrap");
+  const charImg = el("charImg");
+  const charPulse = el("charPulse");
+  const bubbleWrap = el("bubbleWrap");
+  const bubbleText = el("bubbleText");
+  const bubbleName = el("bubbleName");
+  const settingsOverlay = el("settingsOverlay");
+
+  /* ---------------- Load settings on start ---------------- */
+  (async function init(){
+    const saved = await idbGet("settings");
+    if (saved) settings = Object.assign(settings, saved);
+    applySettingsToUI();
+    if (!settings.apiKey || !settings.charImageDataUrl){
+      openSettings();
+    }
+  })();
+
+  function applySettingsToUI(){
+    el("charNameInput").value = settings.charName || "";
+    el("personaInput").value = settings.persona || "";
+    el("apiKeyInput").value = settings.apiKey || "";
+    el("modelSelect").value = settings.model || "gemini-3.1-flash-lite";
+    el("accentColor1").value = settings.accent1 || "#6fe3c4";
+    el("accentColor2").value = settings.accent2 || "#f5a9d0";
+    applyTheme();
+    if (settings.charImageDataUrl){
+      el("charPreview").src = settings.charImageDataUrl;
+      charImg.src = settings.charImageDataUrl;
+      charWrap.style.display = "block";
+      if (!charWrap.style.left && !charWrap.style.right){
+        positionCharDefault();
+      }
+    }
+    bubbleName.textContent = settings.charName || "キャラ";
+  }
+
+  function positionCharDefault(){
+    // bottom-right anchor via CSS bottom/right, so it stays correct even before
+    // the character image has finished loading (no width/height measurement needed).
+    charWrap.style.left = "";
+    charWrap.style.top = "";
+    charWrap.style.right = "20px";
+    charWrap.style.bottom = "24px";
+  }
+
+  /* ---------------- Settings modal ---------------- */
+  function openSettings(){ settingsOverlay.classList.add("show"); }
+  function closeSettings(){ settingsOverlay.classList.remove("show"); }
+
+  el("btnSettings").addEventListener("click", openSettings);
+  settingsOverlay.addEventListener("click", (e) => {
+    if (e.target === settingsOverlay) closeSettings();
+  });
+
+  let pendingCharDataUrl = null;
+  el("btnPickCharImg").addEventListener("click", () => el("charFileInput").click());
+  el("charFileInput").addEventListener("change", (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      pendingCharDataUrl = reader.result;
+      el("charPreview").src = pendingCharDataUrl;
+    };
+    reader.readAsDataURL(file);
+  });
+
+  el("keyToggle").addEventListener("click", () => {
+    const input = el("apiKeyInput");
+    const showing = input.type === "text";
+    input.type = showing ? "password" : "text";
+    el("keyToggle").textContent = showing ? "表示する" : "隠す";
+  });
+
+  el("saveSettings").addEventListener("click", async () => {
+    settings.charName = el("charNameInput").value.trim();
+    settings.persona = el("personaInput").value.trim();
+    settings.apiKey = el("apiKeyInput").value.trim();
+    settings.model = el("modelSelect").value;
+    settings.accent1 = el("accentColor1").value;
+    settings.accent2 = el("accentColor2").value;
+    if (pendingCharDataUrl){
+      settings.charImageDataUrl = pendingCharDataUrl;
+      pendingCharDataUrl = null;
+    }
+    await idbSet("settings", settings);
+    applySettingsToUI();
+    closeSettings();
+  });
+
+  /* ---------------- Photo picking (camera / gallery / Google Photos etc.) ---------------- */
+  const photoInputCamera = el("photoInputCamera");
+  const photoInputGallery = el("photoInputGallery");
+  const photoMenu = el("photoMenu");
+
+  function loadPhotoFile(file){
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      bgPhoto.src = reader.result;
+      bgPhoto.style.display = "block";
+      emptyState.style.display = "none";
+      hideBubble();
+      resetPhotoTransform();
+      if (settings.charImageDataUrl) charWrap.style.display = "block";
+    };
+    reader.readAsDataURL(file);
+  }
+  photoInputCamera.addEventListener("change", (e) => { loadPhotoFile(e.target.files[0]); photoInputCamera.value = ""; });
+  photoInputGallery.addEventListener("change", (e) => { loadPhotoFile(e.target.files[0]); photoInputGallery.value = ""; });
+
+  el("btnPickPhotoEmptyCamera").addEventListener("click", () => photoInputCamera.click());
+  el("btnPickPhotoEmptyGallery").addEventListener("click", () => photoInputGallery.click());
+
+  el("btnChangePhoto").addEventListener("click", (e) => {
+    e.stopPropagation();
+    photoMenu.classList.toggle("show");
+  });
+  el("menuCamera").addEventListener("click", () => { photoMenu.classList.remove("show"); photoInputCamera.click(); });
+  el("menuGallery").addEventListener("click", () => { photoMenu.classList.remove("show"); photoInputGallery.click(); });
+  document.addEventListener("click", (e) => {
+    if (photoMenu.classList.contains("show") && !photoMenu.contains(e.target) && e.target !== el("btnChangePhoto")){
+      photoMenu.classList.remove("show");
+    }
+  });
+
+  /* ---------------- Character dragging & pinch-zoom ---------------- */
+  let dragState = null;
+  let charScale = 1;
+  const activePointers = new Map();
+  let pinchStartDist = null;
+  let pinchStartScale = 1;
+
+  function ptDist(a, b){ return Math.hypot(a.x - b.x, a.y - b.y); }
+  function applyCharScale(){ charWrap.style.transform = "scale(" + charScale + ")"; }
+
+  charWrap.addEventListener("pointerdown", (e) => {
+    charWrap.setPointerCapture(e.pointerId);
+    activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    charWrap.dataset.userPositioned = "1";
+
+    // offsetLeft/offsetTop はCSSのtransform(拡大縮小)の影響を受けないので、
+    // ピンチズーム中でも正しい「素の位置」を取得できる。
+    // ここで right/bottom アンカーだった場合も left/top に変換して以後統一する。
+    const curLeft = charWrap.offsetLeft;
+    const curTop = charWrap.offsetTop;
+    charWrap.style.right = "";
+    charWrap.style.bottom = "";
+    charWrap.style.left = curLeft + "px";
+    charWrap.style.top = curTop + "px";
+
+    if (activePointers.size === 1){
+      dragState = {
+        startX: e.clientX, startY: e.clientY,
+        origLeft: curLeft,
+        origTop: curTop,
+        moved: false
+      };
+    } else if (activePointers.size === 2){
+      dragState = null;
+      const pts = Array.from(activePointers.values());
+      pinchStartDist = ptDist(pts[0], pts[1]);
+      pinchStartScale = charScale;
+    }
+  });
+
+  charWrap.addEventListener("pointermove", (e) => {
+    if (!activePointers.has(e.pointerId)) return;
+    activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    if (activePointers.size >= 2){
+      const pts = Array.from(activePointers.values()).slice(0, 2);
+      const d = ptDist(pts[0], pts[1]);
+      if (pinchStartDist){
+        charScale = Math.max(0.5, Math.min(2.5, pinchStartScale * (d / pinchStartDist)));
+        applyCharScale();
+      }
+      return;
+    }
+
+    if (!dragState) return;
+    const dx = e.clientX - dragState.startX;
+    const dy = e.clientY - dragState.startY;
+    if (Math.abs(dx) > 6 || Math.abs(dy) > 6) dragState.moved = true;
+    if (!dragState.moved) return;
+    charWrap.classList.add("dragging");
+    const rect = stage.getBoundingClientRect();
+    const w = charWrap.offsetWidth, h = charWrap.offsetHeight;
+    const margin = 28; // 画面内に必ず残す最低ピクセル数（つまむための余白）
+    let newLeft = dragState.origLeft + dx;
+    let newTop = dragState.origTop + dy;
+    newLeft = Math.max(-(w - margin), Math.min(rect.width - margin, newLeft));
+    newTop = Math.max(-(h - margin), Math.min(rect.height - margin, newTop));
+    charWrap.style.left = newLeft + "px";
+    charWrap.style.top = newTop + "px";
+  });
+
+  function endPointer(e){
+    activePointers.delete(e.pointerId);
+    if (activePointers.size < 2) pinchStartDist = null;
+    if (activePointers.size === 0){
+      charWrap.classList.remove("dragging");
+      const wasTap = dragState && !dragState.moved;
+      dragState = null;
+      if (wasTap) handleCharTap();
+    }
+  }
+  charWrap.addEventListener("pointerup", endPointer);
+  charWrap.addEventListener("pointercancel", endPointer);
+
+  window.addEventListener("resize", () => {
+    if (charWrap.style.display === "block" && !charWrap.dataset.userPositioned){
+      positionCharDefault();
+    }
+  });
+
+  /* ---------------- Photo pinch-zoom & pan ---------------- */
+  let photoScale = 1, photoX = 0, photoY = 0;
+  const photoPointers = new Map();
+  let photoPinchStartDist = null, photoPinchStartScale = 1;
+  let photoPanState = null;
+
+  function applyPhotoTransform(){
+    bgPhoto.style.transform = `translate(${photoX}px, ${photoY}px) scale(${photoScale})`;
+  }
+  function clampPhotoPan(){
+    const rect = stage.getBoundingClientRect();
+    const maxX = (rect.width * (photoScale - 1)) / 2;
+    const maxY = (rect.height * (photoScale - 1)) / 2;
+    photoX = Math.max(-maxX, Math.min(maxX, photoX));
+    photoY = Math.max(-maxY, Math.min(maxY, photoY));
+  }
+  function resetPhotoTransform(){
+    photoScale = 1; photoX = 0; photoY = 0;
+    applyPhotoTransform();
+  }
+
+  function isChromeTarget(target){
+    return charWrap.contains(target) || bubbleWrap.contains(target) || !!target.closest("button");
+  }
+
+  stage.addEventListener("pointerdown", (e) => {
+    if (isChromeTarget(e.target)) return;
+    if (!bgPhoto.src || bgPhoto.style.display === "none") return;
+    stage.setPointerCapture(e.pointerId);
+    photoPointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (photoPointers.size === 1){
+      photoPanState = { startX: e.clientX, startY: e.clientY, origX: photoX, origY: photoY };
+    } else if (photoPointers.size === 2){
+      photoPanState = null;
+      const pts = Array.from(photoPointers.values());
+      photoPinchStartDist = ptDist(pts[0], pts[1]);
+      photoPinchStartScale = photoScale;
+    }
+  });
+
+  stage.addEventListener("pointermove", (e) => {
+    if (!photoPointers.has(e.pointerId)) return;
+    photoPointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    if (photoPointers.size >= 2){
+      const pts = Array.from(photoPointers.values()).slice(0, 2);
+      const d = ptDist(pts[0], pts[1]);
+      if (photoPinchStartDist){
+        photoScale = Math.max(1, Math.min(4, photoPinchStartScale * (d / photoPinchStartDist)));
+        clampPhotoPan();
+        applyPhotoTransform();
+      }
+      return;
+    }
+    if (!photoPanState) return;
+    photoX = photoPanState.origX + (e.clientX - photoPanState.startX);
+    photoY = photoPanState.origY + (e.clientY - photoPanState.startY);
+    clampPhotoPan();
+    applyPhotoTransform();
+  });
+
+  function endPhotoPointer(e){
+    photoPointers.delete(e.pointerId);
+    if (photoPointers.size < 2) photoPinchStartDist = null;
+    if (photoPointers.size === 0) photoPanState = null;
+  }
+  stage.addEventListener("pointerup", endPhotoPointer);
+  stage.addEventListener("pointercancel", endPhotoPointer);
+
+  /* ---------------- Bubble ---------------- */
+  function showBubbleLoading(){
+    bubbleText.textContent = "……";
+    bubbleText.classList.add("loading");
+    bubbleWrap.classList.add("show");
+  }
+  function showBubbleText(text){
+    bubbleText.textContent = text;
+    bubbleText.classList.remove("loading");
+    bubbleWrap.classList.add("show");
+  }
+  function hideBubble(){
+    bubbleWrap.classList.remove("show");
+  }
+  el("bubbleClose").addEventListener("click", hideBubble);
+  el("askAgain").addEventListener("click", handleCharTap);
+
+  /* ---------------- Gemini call ---------------- */
+  async function compressPhotoToBase64(maxDim){
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const nw = img.naturalWidth, nh = img.naturalHeight;
+        const rect = stage.getBoundingClientRect();
+        const Wc = rect.width, Hc = rect.height;
+
+        // object-fit:cover による自然画像→表示ボックスへのマッピング
+        const coverScale = Math.max(Wc / nw, Hc / nh);
+        const rw = nw * coverScale, rh = nh * coverScale;
+        const offsetX0 = (Wc - rw) / 2;
+        const offsetY0 = (Hc - rh) / 2;
+
+        // 画面の可視範囲[0,Wc]x[0,Hc] を、ユーザーのズーム/パン(transform)前の
+        // ローカル座標に逆変換する
+        const xMinLocal = (0 - photoX - Wc / 2) / photoScale + Wc / 2;
+        const xMaxLocal = (Wc - photoX - Wc / 2) / photoScale + Wc / 2;
+        const yMinLocal = (0 - photoY - Hc / 2) / photoScale + Hc / 2;
+        const yMaxLocal = (Hc - photoY - Hc / 2) / photoScale + Hc / 2;
+
+        // ローカル座標 → 元画像の自然ピクセル座標
+        let natXMin = (xMinLocal - offsetX0) / coverScale;
+        let natXMax = (xMaxLocal - offsetX0) / coverScale;
+        let natYMin = (yMinLocal - offsetY0) / coverScale;
+        let natYMax = (yMaxLocal - offsetY0) / coverScale;
+
+        natXMin = Math.max(0, Math.min(nw, natXMin));
+        natXMax = Math.max(0, Math.min(nw, natXMax));
+        natYMin = Math.max(0, Math.min(nh, natYMin));
+        natYMax = Math.max(0, Math.min(nh, natYMax));
+
+        const cropW = Math.max(1, natXMax - natXMin);
+        const cropH = Math.max(1, natYMax - natYMin);
+
+        let outW = cropW, outH = cropH;
+        if (outW > outH && outW > maxDim){
+          outH = Math.round(outH * (maxDim / outW)); outW = maxDim;
+        } else if (outH > maxDim){
+          outW = Math.round(outW * (maxDim / outH)); outH = maxDim;
+        }
+
+        const canvas = document.createElement("canvas");
+        canvas.width = outW; canvas.height = outH;
+        canvas.getContext("2d").drawImage(img, natXMin, natYMin, cropW, cropH, 0, 0, outW, outH);
+        const dataUrl = canvas.toDataURL("image/jpeg", 0.82);
+        resolve(dataUrl.split(",")[1]);
+      };
+      img.onerror = reject;
+      img.src = bgPhoto.src;
+    });
+  }
+
+  async function handleCharTap(){
+    if (!bgPhoto.src || bgPhoto.style.display === "none"){
+      showBubbleText("先に写真を選んでね📷");
+      return;
+    }
+    if (!settings.apiKey){
+      showBubbleText("設定画面でGemini APIキーを入力してください🔑");
+      openSettings();
+      return;
+    }
+    charPulse.classList.add("active");
+    showBubbleLoading();
+    try{
+      const base64 = await compressPhotoToBase64(1024);
+      const personaText = settings.persona || "あなたは写真に写る景色について、短く親しみのある一言コメントをするキャラクターです。";
+      const prompt = personaText + "\n\n添付した写真を見て、その景色や被写体について、あなたのキャラクターらしく1〜3文程度で短くコメントしてください。前置きや説明文は不要です。";
+
+      const model = settings.model || "gemini-3.1-flash-lite";
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(settings.apiKey)}`;
+      const body = {
+        contents: [{
+          role: "user",
+          parts: [
+            { text: prompt },
+            { inline_data: { mime_type: "image/jpeg", data: base64 } }
+          ]
+        }]
+      };
+
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+      });
+
+      if (!res.ok){
+        const errBody = await res.text();
+        throw new Error(`API error ${res.status}: ${errBody.slice(0,180)}`);
+      }
+      const data = await res.json();
+      const text = data?.candidates?.[0]?.content?.parts?.map(p => p.text || "").join("").trim();
+      if (!text){
+        throw new Error("empty response");
+      }
+      showBubbleText(text);
+    }catch(err){
+      console.error(err);
+      showBubbleText("うまく反応できませんでした……🌙\nAPIキーや通信状況を確認してみてね。\n(" + (err.message || "unknown error") + ")");
+    }finally{
+      charPulse.classList.remove("active");
+    }
+  }
+
+  /* ---------------- Screenshot (photo + character + quote) ---------------- */
+  function roundRectPath(ctx, x, y, w, h, r){
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+  function wrapCanvasText(ctx, text, maxWidth){
+    const paragraphs = String(text).split("\n");
+    const lines = [];
+    paragraphs.forEach((p) => {
+      let line = "";
+      for (const ch of p){
+        const test = line + ch;
+        if (line && ctx.measureText(test).width > maxWidth){
+          lines.push(line);
+          line = ch;
+        } else {
+          line = test;
+        }
+      }
+      lines.push(line);
+    });
+    return lines;
+  }
+  function drawQuoteCard(ctx, Wc, Hc){
+    const padding = 18;
+    const marginBottom = 22;
+    const cardWidth = Math.min(Wc - 28, 480);
+    const fontSize = 15;
+    ctx.font = `${fontSize}px "Zen Kaku Gothic New", sans-serif`;
+    const maxTextWidth = cardWidth - padding * 2;
+    const lines = wrapCanvasText(ctx, bubbleText.textContent, maxTextWidth);
+    const lineHeight = fontSize * 1.7;
+    const nameBlockHeight = 26;
+    const cardHeight = padding * 2 + nameBlockHeight + lines.length * lineHeight;
+    const cardX = (Wc - cardWidth) / 2;
+    const cardY = Hc - marginBottom - cardHeight;
+
+    const cs = getComputedStyle(document.documentElement);
+    const panelColor = (cs.getPropertyValue("--panel") || "rgba(22,20,40,0.8)").trim();
+    const borderColor = (cs.getPropertyValue("--panel-border") || "rgba(200,190,255,0.3)").trim();
+    const accentColor = (cs.getPropertyValue("--aurora-a") || "#6fe3c4").trim();
+
+    ctx.fillStyle = panelColor;
+    roundRectPath(ctx, cardX, cardY, cardWidth, cardHeight, 18);
+    ctx.fill();
+    ctx.strokeStyle = borderColor;
+    ctx.lineWidth = 1;
+    roundRectPath(ctx, cardX, cardY, cardWidth, cardHeight, 18);
+    ctx.stroke();
+
+    ctx.fillStyle = accentColor;
+    ctx.font = `bold 13px "Zen Maru Gothic", sans-serif`;
+    ctx.fillText(settings.charName || "キャラ", cardX + padding, cardY + padding + 10);
+
+    ctx.fillStyle = "#ece9f7";
+    ctx.font = `${fontSize}px "Zen Kaku Gothic New", sans-serif`;
+    lines.forEach((line, i) => {
+      ctx.fillText(line, cardX + padding, cardY + padding + nameBlockHeight + i * lineHeight + fontSize);
+    });
+  }
+
+  function captureScene(){
+    return new Promise((resolve, reject) => {
+      if (!bgPhoto.src || bgPhoto.style.display === "none"){
+        reject(new Error("写真がまだありません"));
+        return;
+      }
+      const photoImg = new Image();
+      photoImg.onload = () => {
+        const rect = stage.getBoundingClientRect();
+        const Wc = rect.width, Hc = rect.height;
+        const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.round(Wc * dpr);
+        canvas.height = Math.round(Hc * dpr);
+        const ctx = canvas.getContext("2d");
+        ctx.scale(dpr, dpr);
+
+        // 写真（ズーム・パン反映）
+        const nw = photoImg.naturalWidth, nh = photoImg.naturalHeight;
+        const coverScale = Math.max(Wc / nw, Hc / nh);
+        const rw = nw * coverScale, rh = nh * coverScale;
+        const offsetX0 = (Wc - rw) / 2, offsetY0 = (Hc - rh) / 2;
+        ctx.save();
+        ctx.translate(Wc / 2 + photoX, Hc / 2 + photoY);
+        ctx.scale(photoScale, photoScale);
+        ctx.translate(-Wc / 2, -Hc / 2);
+        ctx.drawImage(photoImg, offsetX0, offsetY0, rw, rh);
+        ctx.restore();
+
+        const finish = () => {
+          if (bubbleWrap.classList.contains("show") && bubbleText.textContent && !bubbleText.classList.contains("loading")){
+            drawQuoteCard(ctx, Wc, Hc);
+          }
+          canvas.toBlob((blob) => {
+            if (blob) resolve(blob); else reject(new Error("画像の書き出しに失敗しました"));
+          }, "image/png");
+        };
+
+        if (charWrap.style.display === "block" && charImg.src){
+          const charImgEl = new Image();
+          charImgEl.onload = () => {
+            const cx = charWrap.offsetLeft, cy = charWrap.offsetTop;
+            const cw = charWrap.offsetWidth;
+            const ch = cw * (charImgEl.naturalHeight / charImgEl.naturalWidth);
+            const centerX = cx + charWrap.offsetWidth / 2;
+            const centerY = cy + charWrap.offsetHeight / 2;
+            ctx.save();
+            ctx.translate(centerX, centerY);
+            ctx.scale(charScale, charScale);
+            ctx.drawImage(charImgEl, -cw / 2, -ch / 2, cw, ch);
+            ctx.restore();
+            finish();
+          };
+          charImgEl.onerror = finish;
+          charImgEl.src = charImg.src;
+        } else {
+          finish();
+        }
+      };
+      photoImg.onerror = reject;
+      photoImg.src = bgPhoto.src;
+    });
+  }
+
+  el("btnScreenshot").addEventListener("click", async () => {
+    const btn = el("btnScreenshot");
+    const original = btn.textContent;
+    btn.textContent = "⏳";
+    try{
+      const blob = await captureScene();
+      const filename = "acsta_" + Date.now() + ".png";
+      const file = new File([blob], filename, { type: "image/png" });
+      if (navigator.canShare && navigator.canShare({ files: [file] })){
+        try{
+          await navigator.share({ files: [file], title: "アクスタ撮り" });
+          btn.textContent = original;
+          return;
+        }catch(shareErr){
+          // 共有がキャンセルされた場合などはダウンロードにフォールバック
+        }
+      }
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+    }catch(err){
+      console.error(err);
+      showBubbleText("保存に失敗しました……💦 (" + (err.message || "unknown error") + ")");
+    }finally{
+      btn.textContent = original;
+    }
+  });
+
+})();
+</script>
+</body>
+</html>
