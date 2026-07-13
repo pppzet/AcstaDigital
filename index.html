@@ -131,6 +131,11 @@
     cursor: pointer;
   }
   .icon-btn:focus-visible{ outline: 2px solid var(--aurora-b); outline-offset: 2px; }
+  .icon-btn.active{
+    background: linear-gradient(120deg, var(--aurora-a), var(--aurora-c));
+    color: #16142a;
+    border-color: transparent;
+  }
 
   /* ---------- Character overlay ---------- */
   #charWrap{
@@ -305,6 +310,7 @@
         </div>
       </div>
       <button class="icon-btn" id="btnScreenshot" title="保存する" aria-label="保存する">📸</button>
+      <button class="icon-btn" id="btnFullscreen" title="フルスクリーン" aria-label="フルスクリーン">⛶</button>
       <button class="icon-btn" id="btnSettings" title="設定" aria-label="設定">⚙️</button>
     </div>
 
@@ -1027,8 +1033,32 @@
     });
   }
 
-  el("btnScreenshot").addEventListener("click", async () => {
-    const btn = el("btnScreenshot");
+  /* ---------------- Fullscreen toggle ---------------- */
+  function isFullscreen(){
+    return !!(document.fullscreenElement || document.webkitFullscreenElement ||
+              document.mozFullScreenElement || document.msFullscreenElement);
+  }
+  function enterFullscreen(){
+    const target = document.documentElement;
+    const req = target.requestFullscreen || target.webkitRequestFullscreen ||
+                target.mozRequestFullScreen || target.msRequestFullscreen;
+    if (req) req.call(target).catch(() => {});
+  }
+  function exitFullscreenMode(){
+    const ex = document.exitFullscreen || document.webkitExitFullscreen ||
+               document.mozCancelFullScreen || document.msExitFullscreen;
+    if (ex) ex.call(document).catch(() => {});
+  }
+  el("btnFullscreen").addEventListener("click", () => {
+    if (isFullscreen()) exitFullscreenMode(); else enterFullscreen();
+  });
+  ["fullscreenchange", "webkitfullscreenchange", "mozfullscreenchange", "MSFullscreenChange"].forEach((evt) => {
+    document.addEventListener(evt, () => {
+      el("btnFullscreen").classList.toggle("active", isFullscreen());
+    });
+  });
+
+  el("btnScreenshot").addEventListener("click", async () => {    const btn = el("btnScreenshot");
     const original = btn.textContent;
     btn.textContent = "⏳";
     try{
