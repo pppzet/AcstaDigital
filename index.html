@@ -47,12 +47,18 @@
       var(--night);
     touch-action: none;
   }
+  #photoFrameBg{
+    position: absolute; inset: 0;
+    background: transparent;
+    z-index: 0;
+  }
   #bgPhoto{
     position: absolute; inset: 0;
     width: 100%; height: 100%;
-    object-fit: cover;
+    object-fit: contain;
     display: none;
     transform-origin: center center;
+    z-index: 1;
   }
   #emptyState{
     position: absolute; inset: 0;
@@ -149,6 +155,7 @@
     touch-action: none;
     user-select: none;
     filter: drop-shadow(0 10px 18px rgba(0,0,0,0.45));
+    z-index: 2;
   }
   #charWrap.dragging{ filter: drop-shadow(0 16px 26px rgba(0,0,0,0.55)); }
   #charImg{
@@ -264,6 +271,35 @@
     outline: 2px solid var(--aurora-b); outline-offset: 1px;
   }
   .charPickRow{ display: flex; align-items: center; gap: 12px; }
+  .charChipRow{
+    display: flex; gap: 10px; overflow-x: auto; padding: 4px 2px 8px 2px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .charChip{
+    display: flex; flex-direction: column; align-items: center; gap: 5px;
+    flex: 0 0 auto; width: 64px;
+    background: none; border: none; cursor: pointer;
+    font-family: 'Zen Kaku Gothic New', sans-serif;
+    color: var(--ink-dim); font-size: 10.5px;
+    padding: 4px 2px;
+  }
+  .charChipThumb{
+    width: 48px; height: 48px; border-radius: 50%;
+    background-color: rgba(255,255,255,0.06);
+    background-position: center; background-size: cover; background-repeat: no-repeat;
+    border: 2px solid transparent;
+  }
+  .charChip.active{ color: var(--ink); }
+  .charChip.active .charChipThumb{ border-color: var(--aurora-a); }
+  .charChip span{
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 64px;
+  }
+  .charChipAdd{ justify-content: flex-start; }
+  .charChipAdd .charChipThumb{
+    display: flex; align-items: center; justify-content: center;
+    border: 1px dashed var(--panel-border);
+    font-size: 18px; color: var(--ink-dim);
+  }
   .colorRow{ display: flex; gap: 20px; }
   .colorSwatchLabel{
     display: flex; flex-direction: column; align-items: center; gap: 6px;
@@ -311,6 +347,7 @@
         <div id="photoMenu" class="popover">
           <button id="menuCamera">📷 写真を撮る</button>
           <button id="menuGallery">🖼️ アルバムから選ぶ</button>
+          <button id="menuResetPosition">🔄 位置とサイズをリセット</button>
         </div>
       </div>
       <button class="icon-btn" id="btnScreenshot" title="保存する" aria-label="保存する">📸</button>
@@ -318,8 +355,8 @@
       <button class="icon-btn" id="btnSettings" title="設定" aria-label="設定">⚙️</button>
     </div>
 
+    <div id="photoFrameBg"></div>
     <img id="bgPhoto" alt="">
-
     <div id="emptyState">
       <div class="star">✦</div>
       <h1>まだ写真がありません</h1>
@@ -373,6 +410,11 @@
       </div>
 
       <div class="field">
+        <label>キャラクター</label>
+        <div class="charChipRow" id="charChipRow"></div>
+      </div>
+
+      <div class="field">
         <label for="charNameInput">キャラの名前</label>
         <input type="text" id="charNameInput" placeholder="例：セラ">
       </div>
@@ -387,7 +429,7 @@
       </div>
 
       <div class="field">
-        <label>アプリの雰囲気カラー</label>
+        <label>このキャラのイメージカラー</label>
         <div class="colorRow">
           <label class="colorSwatchLabel">
             <input type="color" id="accentColor1" value="#6fe3c4">
@@ -401,18 +443,36 @@
       </div>
 
       <div class="field">
+        <label>写真の余白カラー（写真を画面より小さくした時の背景）</label>
+        <div class="colorRow" style="align-items:center; flex-wrap: wrap; gap: 16px;">
+          <label class="colorSwatchLabel">
+            <input type="color" id="frameColorInput" value="#07080f">
+            <span>色</span>
+          </label>
+          <label style="display:flex; align-items:center; gap:7px; font-size:12.5px; color:var(--ink-dim); cursor:pointer;">
+            <input type="checkbox" id="frameTransparentCheck" checked>
+            透過（アプリの背景をそのまま使う）
+          </label>
+        </div>
+      </div>
+
+      <div class="field">
         <label for="personaInput">キャラ設定プロンプト</label>
         <textarea id="personaInput" placeholder="例：あなたは「セラ」という、少し気まぐれで星が好きな子です。写真を見せてもらったら、まるでその景色に自分も一緒にいるかのように、短く親しみのある一言コメントをしてください。絵文字は控えめに、1〜3文程度で。"></textarea>
       </div>
 
       <div class="field">
-        <label for="apiKeyInput">Gemini API キー</label>
+        <button class="pickBtn" id="btnDeleteChar" style="color:#f5a9d0; border-color: rgba(245,169,208,0.4);">🗑️ このキャラクターを削除</button>
+      </div>
+
+      <div class="field" style="border-top: 1px solid var(--panel-border); padding-top: 16px;">
+        <label for="apiKeyInput">Gemini API キー（全キャラ共通）</label>
         <input type="password" id="apiKeyInput" placeholder="AIza...">
         <button id="keyToggle" type="button">表示する</button>
       </div>
 
       <div class="field">
-        <label for="modelSelect">AIモデル</label>
+        <label for="modelSelect">AIモデル（全キャラ共通）</label>
         <select id="modelSelect">
           <option value="gemini-3.1-flash-lite">gemini-3.1-flash-lite（高速・低コスト・おすすめ）</option>
           <option value="gemini-3.5-flash">gemini-3.5-flash（標準・バランス型）</option>
@@ -459,15 +519,28 @@
   }
 
   /* ---------------- State ---------------- */
-  let settings = {
-    charName: "",
-    persona: "",
-    charImageDataUrl: "",
-    apiKey: "",
-    model: "gemini-3.1-flash-lite",
-    accent1: "#6fe3c4",
-    accent2: "#f5a9d0"
-  };
+  let appConfig = { apiKey: "", model: "gemini-3.1-flash-lite" };
+  let characters = [];
+  let activeCharId = null;
+
+  function makeBlankChar(){
+    return {
+      id: "char_" + Date.now() + "_" + Math.random().toString(36).slice(2, 7),
+      name: "", persona: "", imageDataUrl: "",
+      accent1: "#6fe3c4", accent2: "#f5a9d0",
+      frameColor: "#07080f", frameTransparent: true
+    };
+  }
+  function getActiveChar(){
+    return characters.find((c) => c.id === activeCharId) || characters[0] || null;
+  }
+  async function persistCharacters(){
+    await idbSet("characters", characters);
+    await idbSet("activeCharId", activeCharId);
+  }
+  async function persistAppConfig(){
+    await idbSet("appConfig", appConfig);
+  }
 
   /* ---------------- Theme color helpers ---------------- */
   function hexToRgb(hex){
@@ -492,8 +565,9 @@
     return `rgba(${c.r}, ${c.g}, ${c.b}, ${alpha})`;
   }
   function applyTheme(){
-    const a1 = settings.accent1 || "#6fe3c4";
-    const a2 = settings.accent2 || "#f5a9d0";
+    const c = getActiveChar();
+    const a1 = (c && c.accent1) || "#6fe3c4";
+    const a2 = (c && c.accent2) || "#f5a9d0";
     const mid = mixHex(a1, a2, 0.5);
     const root = document.documentElement.style;
     root.setProperty("--aurora-a", a1);
@@ -504,6 +578,15 @@
     // 設定画面の背景やセリフ欄など、パネル全般にもキャラの色味を反映
     root.setProperty("--panel", hexToRgba(darkenHex(mid, 0.65), 0.76));
     root.setProperty("--panel-border", hexToRgba(mid, 0.4));
+  }
+  function applyFrameBg(){
+    const c = getActiveChar();
+    const bg = el("photoFrameBg");
+    if (c && !c.frameTransparent){
+      bg.style.background = c.frameColor || "#07080f";
+    } else {
+      bg.style.background = "transparent";
+    }
   }
 
   const el = (id) => document.getElementById(id);
@@ -518,33 +601,73 @@
   const bubbleName = el("bubbleName");
   const settingsOverlay = el("settingsOverlay");
 
-  /* ---------------- Load settings on start ---------------- */
+  /* ---------------- Load state on start (with migration from old single-character format) ---------------- */
   (async function init(){
-    const saved = await idbGet("settings");
-    if (saved) settings = Object.assign(settings, saved);
-    applySettingsToUI();
-    if (!settings.apiKey || !settings.charImageDataUrl){
+    const oldSettings = await idbGet("settings");
+    let savedAppConfig = await idbGet("appConfig");
+    let savedCharacters = await idbGet("characters");
+    let savedActiveId = await idbGet("activeCharId");
+
+    if (!savedCharacters && oldSettings){
+      const migrated = makeBlankChar();
+      migrated.name = oldSettings.charName || "";
+      migrated.persona = oldSettings.persona || "";
+      migrated.imageDataUrl = oldSettings.charImageDataUrl || "";
+      migrated.accent1 = oldSettings.accent1 || "#6fe3c4";
+      migrated.accent2 = oldSettings.accent2 || "#f5a9d0";
+      savedCharacters = [migrated];
+      savedActiveId = migrated.id;
+      savedAppConfig = { apiKey: oldSettings.apiKey || "", model: oldSettings.model || "gemini-3.1-flash-lite" };
+    }
+
+    if (savedAppConfig) appConfig = Object.assign(appConfig, savedAppConfig);
+    characters = savedCharacters || [];
+    activeCharId = savedActiveId || (characters[0] && characters[0].id) || null;
+
+    if (characters.length === 0){
+      const blank = makeBlankChar();
+      characters = [blank];
+      activeCharId = blank.id;
+    }
+
+    await persistCharacters();
+    await persistAppConfig();
+
+    el("apiKeyInput").value = appConfig.apiKey || "";
+    el("modelSelect").value = appConfig.model || "gemini-3.1-flash-lite";
+    applyActiveCharToUI();
+    renderCharChips();
+
+    const c = getActiveChar();
+    if (!appConfig.apiKey || !c || !c.imageDataUrl){
       openSettings();
     }
   })();
 
-  function applySettingsToUI(){
-    el("charNameInput").value = settings.charName || "";
-    el("personaInput").value = settings.persona || "";
-    el("apiKeyInput").value = settings.apiKey || "";
-    el("modelSelect").value = settings.model || "gemini-3.1-flash-lite";
-    el("accentColor1").value = settings.accent1 || "#6fe3c4";
-    el("accentColor2").value = settings.accent2 || "#f5a9d0";
+  function applyActiveCharToUI(){
+    const c = getActiveChar();
+    if (!c) return;
+    el("charNameInput").value = c.name || "";
+    el("personaInput").value = c.persona || "";
+    el("accentColor1").value = c.accent1 || "#6fe3c4";
+    el("accentColor2").value = c.accent2 || "#f5a9d0";
+    el("frameColorInput").value = c.frameColor || "#07080f";
+    el("frameTransparentCheck").checked = c.frameTransparent !== false;
+    el("frameColorInput").disabled = c.frameTransparent !== false;
+    el("charPreview").src = c.imageDataUrl || "";
+    pendingCharDataUrl = null;
     applyTheme();
-    if (settings.charImageDataUrl){
-      el("charPreview").src = settings.charImageDataUrl;
-      charImg.src = settings.charImageDataUrl;
+    applyFrameBg();
+    if (c.imageDataUrl){
+      charImg.src = c.imageDataUrl;
       charWrap.style.display = "block";
       if (!charWrap.style.left && !charWrap.style.right){
         positionCharDefault();
       }
+    } else {
+      charWrap.style.display = "none";
     }
-    bubbleName.textContent = settings.charName || "キャラ";
+    bubbleName.textContent = c.name || "キャラ";
   }
 
   function positionCharDefault(){
@@ -555,6 +678,70 @@
     charWrap.style.right = "20px";
     charWrap.style.bottom = "24px";
   }
+
+  /* ---------------- Character chips (switch / add) ---------------- */
+  function renderCharChips(){
+    const row = el("charChipRow");
+    row.textContent = "";
+    characters.forEach((c) => {
+      const chip = document.createElement("button");
+      chip.type = "button";
+      chip.className = "charChip" + (c.id === activeCharId ? " active" : "");
+
+      const thumb = document.createElement("div");
+      thumb.className = "charChipThumb";
+      if (c.imageDataUrl) thumb.style.backgroundImage = `url("${c.imageDataUrl}")`;
+      chip.appendChild(thumb);
+
+      const label = document.createElement("span");
+      label.textContent = c.name || "名前なし";
+      chip.appendChild(label);
+
+      chip.addEventListener("click", () => {
+        activeCharId = c.id;
+        persistCharacters();
+        applyActiveCharToUI();
+        renderCharChips();
+      });
+      row.appendChild(chip);
+    });
+
+    const addChip = document.createElement("button");
+    addChip.type = "button";
+    addChip.className = "charChip charChipAdd";
+    const addThumb = document.createElement("div");
+    addThumb.className = "charChipThumb";
+    addThumb.textContent = "＋";
+    addChip.appendChild(addThumb);
+    const addLabel = document.createElement("span");
+    addLabel.textContent = "追加";
+    addChip.appendChild(addLabel);
+    addChip.addEventListener("click", () => {
+      const blank = makeBlankChar();
+      characters.push(blank);
+      activeCharId = blank.id;
+      persistCharacters();
+      applyActiveCharToUI();
+      renderCharChips();
+    });
+    row.appendChild(addChip);
+  }
+
+  el("btnDeleteChar").addEventListener("click", () => {
+    if (characters.length <= 1){
+      showImportStatus("⚠️ 最後の1人は削除できません", false);
+      return;
+    }
+    const idx = characters.findIndex((c) => c.id === activeCharId);
+    if (idx === -1) return;
+    const name = characters[idx].name || "このキャラ";
+    if (!confirm(`「${name}」を削除しますか？元に戻せません。`)) return;
+    characters.splice(idx, 1);
+    activeCharId = characters[0].id;
+    persistCharacters();
+    applyActiveCharToUI();
+    renderCharChips();
+  });
 
   /* ---------------- Settings modal ---------------- */
   function openSettings(){ settingsOverlay.classList.add("show"); }
@@ -578,7 +765,11 @@
     reader.readAsDataURL(file);
   });
 
-  /* ---------------- Settings backup (export / import JSON) ---------------- */
+  el("frameTransparentCheck").addEventListener("change", () => {
+    el("frameColorInput").disabled = el("frameTransparentCheck").checked;
+  });
+
+  /* ---------------- Settings backup (export / import JSON, all characters) ---------------- */
   function showImportStatus(msg, ok){
     const p = el("importStatus");
     p.textContent = msg;
@@ -588,12 +779,9 @@
 
   el("btnExportSettings").addEventListener("click", () => {
     const exportData = {
-      charName: settings.charName,
-      persona: settings.persona,
-      charImageDataUrl: settings.charImageDataUrl,
-      model: settings.model,
-      accent1: settings.accent1,
-      accent2: settings.accent2
+      characters: characters,
+      activeCharId: activeCharId,
+      model: appConfig.model
     };
     const dataStr = JSON.stringify(exportData, null, 2);
     const blob = new Blob([dataStr], { type: "application/json" });
@@ -605,7 +793,7 @@
     a.click();
     document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(url), 4000);
-    showImportStatus("📤 書き出しました（APIキーは含まれません）", true);
+    showImportStatus("📤 全キャラクター分を書き出しました（APIキーは含まれません）", true);
   });
 
   el("btnImportSettings").addEventListener("click", () => el("importFileInput").click());
@@ -615,17 +803,41 @@
     try{
       const text = await file.text();
       const imported = JSON.parse(text);
-      settings = {
-        charName: imported.charName || "",
-        persona: imported.persona || "",
-        charImageDataUrl: imported.charImageDataUrl || "",
-        apiKey: settings.apiKey,
-        model: imported.model || "gemini-3.1-flash-lite",
-        accent1: imported.accent1 || "#6fe3c4",
-        accent2: imported.accent2 || "#f5a9d0"
-      };
-      await idbSet("settings", settings);
-      applySettingsToUI();
+
+      if (Array.isArray(imported.characters) && imported.characters.length > 0){
+        // 新形式（複数キャラクター）
+        characters = imported.characters.map((c) => ({
+          id: c.id || makeBlankChar().id,
+          name: c.name || "",
+          persona: c.persona || "",
+          imageDataUrl: c.imageDataUrl || "",
+          accent1: c.accent1 || "#6fe3c4",
+          accent2: c.accent2 || "#f5a9d0",
+          frameColor: c.frameColor || "#07080f",
+          frameTransparent: c.frameTransparent !== false
+        }));
+        activeCharId = (imported.activeCharId && characters.some((c) => c.id === imported.activeCharId))
+          ? imported.activeCharId : characters[0].id;
+      } else if (imported.charName !== undefined || imported.persona !== undefined || imported.charImageDataUrl !== undefined){
+        // 旧形式（単一キャラクター）→ 既存のキャラ一覧に追加する形で復元
+        const migrated = makeBlankChar();
+        migrated.name = imported.charName || "";
+        migrated.persona = imported.persona || "";
+        migrated.imageDataUrl = imported.charImageDataUrl || "";
+        migrated.accent1 = imported.accent1 || "#6fe3c4";
+        migrated.accent2 = imported.accent2 || "#f5a9d0";
+        characters.push(migrated);
+        activeCharId = migrated.id;
+      } else {
+        throw new Error("キャラクターのデータが見つかりませんでした");
+      }
+      if (imported.model) appConfig.model = imported.model;
+
+      await persistCharacters();
+      await persistAppConfig();
+      el("modelSelect").value = appConfig.model || "gemini-3.1-flash-lite";
+      applyActiveCharToUI();
+      renderCharChips();
       showImportStatus("✅ 設定を復元しました（APIキーは含まれないので、必要なら入力してください）", true);
     }catch(err){
       console.error(err);
@@ -634,25 +846,33 @@
     el("importFileInput").value = "";
   });
 
-  el("keyToggle").addEventListener("click", () => {    const input = el("apiKeyInput");
+  el("keyToggle").addEventListener("click", () => {
+    const input = el("apiKeyInput");
     const showing = input.type === "text";
     input.type = showing ? "password" : "text";
     el("keyToggle").textContent = showing ? "表示する" : "隠す";
   });
 
   el("saveSettings").addEventListener("click", async () => {
-    settings.charName = el("charNameInput").value.trim();
-    settings.persona = el("personaInput").value.trim();
-    settings.apiKey = el("apiKeyInput").value.trim();
-    settings.model = el("modelSelect").value;
-    settings.accent1 = el("accentColor1").value;
-    settings.accent2 = el("accentColor2").value;
-    if (pendingCharDataUrl){
-      settings.charImageDataUrl = pendingCharDataUrl;
-      pendingCharDataUrl = null;
+    const c = getActiveChar();
+    if (c){
+      c.name = el("charNameInput").value.trim();
+      c.persona = el("personaInput").value.trim();
+      c.accent1 = el("accentColor1").value;
+      c.accent2 = el("accentColor2").value;
+      c.frameColor = el("frameColorInput").value;
+      c.frameTransparent = el("frameTransparentCheck").checked;
+      if (pendingCharDataUrl){
+        c.imageDataUrl = pendingCharDataUrl;
+        pendingCharDataUrl = null;
+      }
     }
-    await idbSet("settings", settings);
-    applySettingsToUI();
+    appConfig.apiKey = el("apiKeyInput").value.trim();
+    appConfig.model = el("modelSelect").value;
+    await persistCharacters();
+    await persistAppConfig();
+    applyActiveCharToUI();
+    renderCharChips();
     closeSettings();
   });
 
@@ -665,12 +885,14 @@
     if (!file) return;
     const reader = new FileReader();
     reader.onload = () => {
-      bgPhoto.src = reader.result;
-      bgPhoto.style.display = "block";
       emptyState.style.display = "none";
       hideBubble();
-      resetPhotoTransform();
-      if (settings.charImageDataUrl) charWrap.style.display = "block";
+      bgPhoto.onload = () => {
+        resetPhotoTransform();
+      };
+      bgPhoto.src = reader.result;
+      bgPhoto.style.display = "block";
+      if (getActiveChar() && getActiveChar().imageDataUrl) charWrap.style.display = "block";
     };
     reader.readAsDataURL(file);
   }
@@ -686,6 +908,7 @@
   });
   el("menuCamera").addEventListener("click", () => { photoMenu.classList.remove("show"); photoInputCamera.click(); });
   el("menuGallery").addEventListener("click", () => { photoMenu.classList.remove("show"); photoInputGallery.click(); });
+  el("menuResetPosition").addEventListener("click", () => { photoMenu.classList.remove("show"); resetPhotoTransform(); });
   document.addEventListener("click", (e) => {
     if (photoMenu.classList.contains("show") && !photoMenu.contains(e.target) && e.target !== el("btnChangePhoto")){
       photoMenu.classList.remove("show");
@@ -793,13 +1016,25 @@
   }
   function clampPhotoPan(){
     const rect = stage.getBoundingClientRect();
-    const maxX = (rect.width * (photoScale - 1)) / 2;
-    const maxY = (rect.height * (photoScale - 1)) / 2;
+    const w = rect.width * photoScale;
+    const h = rect.height * photoScale;
+    const margin = 40; // 画面内に必ず残す最低ピクセル数（つまむための余白）
+    const maxX = Math.max(0, rect.width / 2 + w / 2 - margin);
+    const maxY = Math.max(0, rect.height / 2 + h / 2 - margin);
     photoX = Math.max(-maxX, Math.min(maxX, photoX));
     photoY = Math.max(-maxY, Math.min(maxY, photoY));
   }
+  function computeInitialPhotoScale(){
+    const nw = bgPhoto.naturalWidth, nh = bgPhoto.naturalHeight;
+    if (!nw || !nh) return 1;
+    const rect = stage.getBoundingClientRect();
+    const containScale = Math.min(rect.width / nw, rect.height / nh);
+    const coverScale = Math.max(rect.width / nw, rect.height / nh);
+    return containScale > 0 ? (coverScale / containScale) : 1;
+  }
   function resetPhotoTransform(){
-    photoScale = 1; photoX = 0; photoY = 0;
+    photoScale = computeInitialPhotoScale();
+    photoX = 0; photoY = 0;
     applyPhotoTransform();
   }
 
@@ -830,7 +1065,7 @@
       const pts = Array.from(photoPointers.values()).slice(0, 2);
       const d = ptDist(pts[0], pts[1]);
       if (photoPinchStartDist){
-        photoScale = Math.max(1, Math.min(4, photoPinchStartScale * (d / photoPinchStartDist)));
+        photoScale = Math.max(0.3, Math.min(4, photoPinchStartScale * (d / photoPinchStartDist)));
         clampPhotoPan();
         applyPhotoTransform();
       }
@@ -877,9 +1112,9 @@
         const rect = stage.getBoundingClientRect();
         const Wc = rect.width, Hc = rect.height;
 
-        // object-fit:cover による自然画像→表示ボックスへのマッピング
-        const coverScale = Math.max(Wc / nw, Hc / nh);
-        const rw = nw * coverScale, rh = nh * coverScale;
+        // object-fit:contain による自然画像→表示ボックスへのマッピング（画像は切り捨てず、レターボックスになる）
+        const containScale = Math.min(Wc / nw, Hc / nh);
+        const rw = nw * containScale, rh = nh * containScale;
         const offsetX0 = (Wc - rw) / 2;
         const offsetY0 = (Hc - rh) / 2;
 
@@ -891,10 +1126,10 @@
         const yMaxLocal = (Hc - photoY - Hc / 2) / photoScale + Hc / 2;
 
         // ローカル座標 → 元画像の自然ピクセル座標
-        let natXMin = (xMinLocal - offsetX0) / coverScale;
-        let natXMax = (xMaxLocal - offsetX0) / coverScale;
-        let natYMin = (yMinLocal - offsetY0) / coverScale;
-        let natYMax = (yMaxLocal - offsetY0) / coverScale;
+        let natXMin = (xMinLocal - offsetX0) / containScale;
+        let natXMax = (xMaxLocal - offsetX0) / containScale;
+        let natYMin = (yMinLocal - offsetY0) / containScale;
+        let natYMax = (yMaxLocal - offsetY0) / containScale;
 
         natXMin = Math.max(0, Math.min(nw, natXMin));
         natXMax = Math.max(0, Math.min(nw, natXMax));
@@ -927,7 +1162,7 @@
       showBubbleText("先に写真を選んでね📷");
       return;
     }
-    if (!settings.apiKey){
+    if (!appConfig.apiKey){
       showBubbleText("設定画面でGemini APIキーを入力してください🔑");
       openSettings();
       return;
@@ -936,11 +1171,12 @@
     showBubbleLoading();
     try{
       const base64 = await compressPhotoToBase64(1024);
-      const personaText = settings.persona || "あなたは写真に写る景色について、短く親しみのある一言コメントをするキャラクターです。";
+      const activeChar = getActiveChar();
+      const personaText = (activeChar && activeChar.persona) || "あなたは写真に写る景色について、短く親しみのある一言コメントをするキャラクターです。";
       const prompt = personaText + "\n\n添付した写真を見て、その景色や被写体について、あなたのキャラクターらしく1〜3文程度で短くコメントしてください。前置きや説明文は不要です。";
 
-      const model = settings.model || "gemini-3.1-flash-lite";
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(settings.apiKey)}`;
+      const model = appConfig.model || "gemini-3.1-flash-lite";
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(appConfig.apiKey)}`;
       const body = {
         contents: [{
           role: "user",
@@ -1032,7 +1268,7 @@
 
     ctx.fillStyle = accentColor;
     ctx.font = `bold 13px "Zen Maru Gothic", sans-serif`;
-    ctx.fillText(settings.charName || "キャラ", cardX + padding, cardY + padding + 10);
+    ctx.fillText((getActiveChar() && getActiveChar().name) || "キャラ", cardX + padding, cardY + padding + 10);
 
     ctx.fillStyle = "#ece9f7";
     ctx.font = `${fontSize}px "Zen Kaku Gothic New", sans-serif`;
@@ -1058,10 +1294,17 @@
         const ctx = canvas.getContext("2d");
         ctx.scale(dpr, dpr);
 
-        // 写真（ズーム・パン反映）
+        // 余白カラー（写真が画面より小さい時の背景）。透過指定の場合は塗らずアルファのままにする
+        const activeCharForCapture = getActiveChar();
+        if (activeCharForCapture && activeCharForCapture.frameTransparent === false){
+          ctx.fillStyle = activeCharForCapture.frameColor || "#07080f";
+          ctx.fillRect(0, 0, Wc, Hc);
+        }
+
+        // 写真（ズーム・パン反映、object-fit:contain基準）
         const nw = photoImg.naturalWidth, nh = photoImg.naturalHeight;
-        const coverScale = Math.max(Wc / nw, Hc / nh);
-        const rw = nw * coverScale, rh = nh * coverScale;
+        const containScale = Math.min(Wc / nw, Hc / nh);
+        const rw = nw * containScale, rh = nh * containScale;
         const offsetX0 = (Wc - rw) / 2, offsetY0 = (Hc - rh) / 2;
         ctx.save();
         ctx.translate(Wc / 2 + photoX, Hc / 2 + photoY);
